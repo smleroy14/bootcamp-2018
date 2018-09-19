@@ -1,0 +1,158 @@
+---
+title: "Day 3 R"
+author: "Michel LeRoy"
+date: "9/19/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Read in data
+```{r}
+generation <- read.csv("data/generation.csv", stringsAsFactors = FALSE)
+imports <- read.csv("data/imports.csv", stringsAsFactors = FALSE)
+```
+#Explore Data
+```{r}
+str(generation)
+head(generation)
+str(imports)
+head(imports)
+```
+#Convert Datetime Variable
+```{r}
+class(generation$datetime)
+library(lubridate)
+generation$datetime <- as_datetime(generation$datetime)
+class(generation$datetime)
+
+imports$datetime <- as_datetime(imports$datetime)
+```
+```{r}
+head(generation)
+head(imports)
+```
+#Reshaping Data
+```{r}
+head(generation)
+#unit of observation is by time, every hour
+
+library(reshape2)
+long_gen <- melt(generation, id.vars = "datetime", variable.name = "source", value.name = "usage")
+head(long_gen)
+#unit of observations is by hour and energy source
+```
+#sort data
+```{r}
+long_gen[order(long_gen$datetime), ]
+```
+
+#Merge data
+```{r}
+merged_gen_imports <- merge(generation, imports, by = c("datetime"))
+str(merged_gen_imports)
+```
+
+#Reshape merged data
+```{r}
+long_merged_energy <- melt(merged_gen_imports, id.vars = c("datetime"), variable.name = "source", value.name = "usage")
+str(long_merged_energy)
+```
+
+##Dplyr
+```{r}
+library(dplyr)
+tmp <- select(merged_gen_imports, biogas, biomass, geothermal, solar)
+names(tmp)
+
+tmp <- select(merged_gen_imports, -biogas, -biomass, -geothermal, -solar)
+names(tmp)
+```
+#Select based on columns
+```{r}
+#select
+tmp <- select(merged_gen_imports, contains("hydro"), starts_with("bio"))
+names(tmp)
+```
+#Filter - filters based on rows 
+```{r}
+#filter
+nrow(merged_gen_imports)
+tmp <- filter(merged_gen_imports, imports>7000)
+nrow(tmp)
+```
+```{r}
+tmp <- filter(merged_gen_imports, imports>7000, natural_gas <7000)
+nrow(tmp)
+tmp <- filter(merged_gen_imports, imports>7000 | natural_gas <7000)
+nrow(tmp)
+```
+#mutate - create new variables
+```{r}
+tmp <- mutate(long_merged_energy, log_usage = log(usage))
+head(tmp)
+tmp <- mutate(long_merged_energy, log_usage = log(usage), usage2 = usage^2, usage3 = usage^3)
+head(tmp)
+```
+#Summarize - reduces observations to a single value 
+```{r}
+summarize(long_merged_energy, total = sum(usage, na.rm=T))
+summarize(long_merged_energy, mean_consumption = mean(usage, na.rm=T))
+```
+#Pipes
+```{r}
+long_merged_energy %>%
+  filter(source=="geothermal") %>%
+  select(-datetime) %>%
+  mutate(log_usage = log(usage)) %>%
+  summarize(mean_log_usage = mean(log_usage, na.rm = T))
+```
+#While piping, the mutated dataframe is referred to with .
+```{r}
+tmp <- merged_gen_imports %>%
+  select(-datetime) %>%
+  mutate(total_usage = rowSums(., na.rm=T)) %>%
+  summarize(total_usage = sum(total_usage, na.rm=T))
+tmp
+```
+```{r}
+merged_gen_imports %>%
+  select(contains("hydro")) %>%
+  mutate(total_hydro = rowSums(., na.rm=T)) %>%
+  summarize(mean_total_hydro = mean(total_hydro, na.rm = T))
+
+```
+#Group By and Summarize
+```{r}
+long_merged_energy %>%
+  group_by(source) %>%
+  summarize(sum_usage = sum(usage, na.rm = T))
+```
+```{r}
+gapminder <- read.csv("data/gapminder5.csv")
+
+gapminder %>%
+  group_by(year) %>%
+  summarize(mean_le = mean(lifeExp, na.rm = T), 
+            sd_lf = sd(lifeExp, na.rm=T))
+
+```
+```{r}
+long_merged_energy %>%
+  filter(source %in% c("small_hydro", "large_hydro", "biogas", "biomass")) %>%
+  group_by(source) %>%
+  summarize(mean_usage = mean(usage))
+```
+```{r}
+merged_gen_imports %>%
+  select("small_hydro", "large_hydro", "biogas", "biomass") %>%
+  View()
+  summarize(mean_sh = mean(small_hydro), mean_lh = mean(large_hydro), mean_bg = mean(biogas), mean_bm = mean(biomass))
+```
+```{r}
+long_merged_energy %>%
+  filter(source == c("small_hydro")) %>%
+  View()
+```

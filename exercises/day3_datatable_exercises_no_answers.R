@@ -11,27 +11,27 @@
 # read in data ----
 
 # import data.table library
-# library(data.table)
-# library(lubridate)
+library(data.table)
+library(lubridate)
 
-# data_file <- here::here("data", "generation.csv")
+data_file <- here::here("data", "generation.csv")
 
 # read in two versions of data, one as a data.frame and one as a data.table
-# generation_df <- read.csv(data_file, stringsAsFactors = F)
-# generation_dt <- fread(data_file)
+generation_df <- read.csv(data_file, stringsAsFactors = F)
+generation_dt <- fread(data_file)
 
 # compare
-# View(generation_df)
-# View(generation_dt)
+View(generation_df)
+View(generation_dt)
 
-# generation_df
-# generation_dt
+generation_df
+generation_dt
 
-# class(generation_df) # "data.frame"
-# class(generation_dt) # "data.table" "data.frame"
+class(generation_df) # "data.frame"
+class(generation_dt) # "data.table" "data.frame"
 
-# str(generation_df)
-# str(generation_dt)
+str(generation_df)
+str(generation_dt)
 
 # -----------------------------------------------------------------------------|
 # slicing, column operations, and group by ----
@@ -39,12 +39,12 @@
 
 # syntax
 
-# data.frame column selection
-# generation_df[,"small_hydro"]
-# select(generation_df, small_hydro)
+#data.frame column selection
+generation_df[,"small_hydro"]
+select(generation_df, small_hydro)
 
 # data.table column selection
-# generation_dt[,small_hydro] # No quotes on column names!
+ generation_dt[,small_hydro] # No quotes on column names!
 
 # data.frame column selection (multiple)
 # select(generation_df, datetime, small_hydro)
@@ -104,6 +104,10 @@
 
 # run answer
 
+ library(lubridate)
+ generation_dt[,datetime:=as_datetime(datetime)]
+ generation_dt2 <- generation_dt[,total_renew := (solar+wind),by=.(day(datetime), hour(datetime))]
+
 # -----------------------------------------------------------------------------|
 # `data.table` upgrades to other functions ----
 # -----------------------------------------------------------------------------|
@@ -115,7 +119,7 @@
 # all_generation <- merge(generation_dt, imports, by = "datetime")
 
 # all_generation_long <-  melt(all_generation,
-#                              id.vars = "datetime", 
+#                              id.vars = "datetime",
 #                              variable.name = "type")
 
 # now most calculations are much easier
