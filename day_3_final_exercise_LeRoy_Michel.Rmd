@@ -1,0 +1,125 @@
+---
+title: "Day 3 Final Exercise"
+author: "Michel LeRoy"
+date: "9/19/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Import Data
+```{r}
+nys_schools <- read.csv("data/nys_schools.csv", stringsAsFactors = F)
+nys_acs <- read.csv("data/nys_acs.csv")
+```
+
+## Explore Data
+```{r}
+str(nys_schools)
+str(nys_acs)
+head(nys_schools)
+head(nys_acs)
+```
+
+## Recoding and Variable Manipulation
+#getting rid of missing values (-99)
+```{r}
+#summary(nys_schools)
+#vars <- c("per_free_lunch", "per_reduced_lunch", "per_lep", "mean_ela_score", "mean_math_score")
+#for (i in vars) {
+#  nys_schools[[i]][nys_schools[[i]]==-99] <- NA
+#}
+#The above for loop did not account for the string variables that had "-99" as school names, etc.
+nys_schools[nys_schools==-99] <- NA
+nys_acs[nys_acs==-99] <- NA
+```
+## High, Medium, and Low Poverty Groups
+
+
+```{r}
+summary(nys_acs$county_per_poverty)
+
+nys_acs <- nys_acs %>%
+  mutate(county_per_pov_factor = ifelse(county_per_poverty >= quantile(county_per_poverty, 0.75), "High", NA)) %>%
+  mutate(county_per_pov_factor = ifelse(county_per_poverty <= quantile(county_per_poverty, 0.25), "Low", county_per_pov_factor)) %>%
+  mutate(county_per_pov_factor = ifelse(is.na(county_per_pov_factor), "Medium", county_per_pov_factor))
+
+table(nys_acs$county_per_pov_factor)
+```
+
+## Scaling Test Scores
+```{r}
+nys_schools <- nys_schools %>%
+  group_by(year) %>%
+  mutate(scaled_mean_ela_score = scale(mean_ela_score)) %>%
+  mutate(scaled_mean_math_score = scale(mean_math_score)) 
+  
+```
+#### Task 4: Merge datasets
+
+#Create a county-level dataset that merges variables from the schools dataset and the ACS dataset. Remember that you have learned multiple approaches on how to do this, and that you will have to decide how to summarize data when moving from the school to the county level.
+
+```{r}
+rename(nys_acs, name = county_name)
+merged_nys <- merge(nys_acs, nys_schools, by = c("year", "county_name"), all = T)
+dim(nys_acs)
+dim(nys_schools)
+dim(merged_nys)
+str(merged_nys)
+
+```
+
+
+#### Task 5: Create summary tables
+
+#Generate tables showing the following:
+
+#1. For each county: total enrollment, percent of students qualifying for free or reduced price lunch, and percent of population in poverty.
+#2. For the counties with the top 5 and bottom 5 poverty rate: percent of population in poverty, percent of students qualifying for free or reduced price lunch, mean reading score, and mean math score.
+
+```{r}
+  
+merged_nys %>%
+  #average percent of county below poverty line over all years, average pct of students on free & reduced lunch, total enrollment
+  group_by(county_name) %>%
+  summarize(mean_tot_pct_pov = mean(county_per_poverty, na.rm=T), mean_tot_pct_frl = mean(per_free_lunch, na.rm=T), sum_total_enroll = sum(total_enroll, na.rm=T))
+  
+```
+
+#### Task 6: Data visualization
+
+#Using `ggplot2`, visualize the following:
+
+#1. The relationship between access to free/reduced price lunch and test performance, at the *school* level.
+
+
+```{r}
+nys_schools %>%
+  group_by(year) %>%
+  mutate(mean_pct_frl = mean(per_free_lunch, na.rm=T), avg_test = mean(scaled_mean_ela_score + scaled_mean_math_score, na.rm=T)) %>%
+  ggplot() +
+  geom_point(aes(x =  mean_pct_frl, y = avg_test)) + 
+  #geom_hline(aes(yintercept = mean(lifeExp))) + 
+  labs(title = "Relationship between test scores and percent of students on free and reduced lunch", 
+       x = "Scaled test scores", y = "Percent of students on free and reduced lunch")
+```
+#2. Average test performance across *counties* with high, low, and medium poverty.
+```{r}
+merged_nys %>%
+  group_by(county_name) %>%
+  mutate(avg_test = mean(scaled_mean_ela_score + scaled_mean_math_score, na.rm=T)) %>%
+  ggplot() +
+  geom_point(aes(x=county_per_pov_factor, y=avg_test, col=county_per_pov_factor)) + 
+  scale_color_discrete(name="County Poverty Factor") + 
+  labs(title="Average test performance across *counties* with high, low, and medium poverty", x="County Poverty", y="Average Test Scores")
+  
+```
+ 
+  
+
+
+
+
+
